@@ -17,4 +17,6 @@
     <string name="user_s_custom_sound_resgistration">User\'s Custom Sound Resgistration</string>
     <string name="check_sound_classification_items">Check sound classification items</string>
     <string name="name_update">Name Update</string>
+    <string name="voice_recognition_auto">Voice_recognition_auto</string>
+    <string name="voice_recognition_auto_stop">Voice_recognition_auto_stop</string>
 </resources>

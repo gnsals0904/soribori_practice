@@ -66,28 +66,28 @@
         app:layout_constraintVertical_bias="0.963" />
 
     <Button
-        android:id="@+id/Cancel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/cancel"
+        android:id="@+id/Voice_recognition_auto"
+        android:layout_width="118dp"
+        android:layout_height="58dp"
+        android:text="@string/voice_recognition_auto"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.229"
+        app:layout_constraintHorizontal_bias="0.204"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.409" />
+        app:layout_constraintVertical_bias="0.401" />
 
     <Button
-        android:id="@+id/Restart"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/restart"
+        android:id="@+id/Voice_recognition_auto_stop"
+        android:layout_width="126dp"
+        android:layout_height="71dp"
+        android:text="@string/voice_recognition_auto_stop"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.73"
+        app:layout_constraintHorizontal_bias="0.767"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.409" />
+        app:layout_constraintVertical_bias="0.404" />
 
     <TextView
         android:id="@+id/User_name_textview"

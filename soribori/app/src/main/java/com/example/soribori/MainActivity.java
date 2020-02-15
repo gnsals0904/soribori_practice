@@ -12,17 +12,18 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.kakao.sdk.newtoneapi.SpeechRecognizeListener;
-import com.kakao.sdk.newtoneapi.SpeechRecognizerActivity;
 import com.kakao.sdk.newtoneapi.SpeechRecognizerClient;
 import com.kakao.sdk.newtoneapi.SpeechRecognizerManager;
 import com.kakao.sdk.newtoneapi.impl.util.PermissionUtils;
@@ -30,6 +31,7 @@ import com.kakao.sdk.newtoneapi.impl.util.PermissionUtils;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+
 
 /**
  *
@@ -43,7 +45,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private static final int REQUEST_CODE_AUDIO_AND_WRITE_EXTERNAL_STORAGE = 1; //what number..? maybe 1
     private SpeechRecognizerClient client;
+
     String User_Name;
+    boolean AutoRunning = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,8 +66,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
+
+
         //activity_main을 screen으로 설정
         setContentView(R.layout.activity_main);
+
 
 
         //유저에게 권한 요청
@@ -86,8 +93,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // 버튼 클릭 리스너 등록
         findViewById(R.id.Voice_recognition_start).setOnClickListener(this);
         findViewById(R.id.Voice_recognition_stop).setOnClickListener(this);
-        findViewById(R.id.Cancel).setOnClickListener(this);
-        findViewById(R.id.Restart).setOnClickListener(this);
+        findViewById(R.id.Voice_recognition_auto).setOnClickListener(this);
+        findViewById(R.id.Voice_recognition_auto_stop).setOnClickListener(this);
         findViewById(R.id.check_sound_classification_items).setOnClickListener(this);
         findViewById(R.id.user_s_custom_sound_resgistration).setOnClickListener(this);
         findViewById(R.id.name_update).setOnClickListener(this);
@@ -105,21 +112,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         TextView usernametext = (TextView)findViewById(R.id.User_name_textview);
         usernametext.setText(text);
 
-
-        /**
-        String userdict = "안녕\n나도안녕\n하이하이";
-
-        SpeechRecognizerClient.Builder builder = new SpeechRecognizerClient.Builder().setUserDictionary(userdict);
-        //여기가 고립어
-        SpeechRecognizerClient client = builder.build();
-
-
-        SpeechRecognizerClient.Builder builder1 = new SpeechRecognizerClient.Builder().setServiceType(SpeechRecognizerClient.SERVICE_TYPE_DICTATION);
-        //15초 정도의 한 문장 인식
-        SpeechRecognizerClient client1 = builder1.build();
-        */
     }
-    // ...
 
     @Override
     protected void onResume() {
@@ -158,7 +151,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         int id = v.getId();
 
-        String serviceType = SpeechRecognizerClient.SERVICE_TYPE_DICTATION;
+        final String serviceType = SpeechRecognizerClient.SERVICE_TYPE_DICTATION;
 
         // Voice_recognition_start 버튼을 클릭했을때
         if (id == R.id.Voice_recognition_start) {
@@ -185,23 +178,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
 
-        // 음성 인식 취소 버튼 리스너
-        // 취소 버튼을 누르면 그 후에 response 는 따로 없고 그냥 음성 인식 과정이 취소 된다.
-        else if (id == R.id.Cancel) {
-            if (client != null) {
-                client.cancelRecording();
-            }
+        // 음성 인식 자동시작
+        // 자동 시작하면 2초정도로 끊어서 계속 인식하게 된다
+        else if (id == R.id.Voice_recognition_auto) {
+            AutoRunning = true;
+            if(PermissionUtils.checkAudioRecordPermission(this)) {
 
-            setButtonsStatus(true);
+                //쓰레드 시작
+                try {
+                    ExampleThread thread = new ExampleThread();
+                    thread.setDaemon(true);
+                    thread.start();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+            }
         }
 
-        // 음성인식 재시작버튼 리스너
-        // 재시작은 이어서 시작하는게 아니라 캔슬 즉 아예취소해버린후 다시시작하는거임.
-        else if (id == R.id.Restart) {
+        // 자동시작 stop 하는 버튼
+        else if (id == R.id.Voice_recognition_auto_stop) {
             if (client != null) {
-                client.cancelRecording();
-                client.startRecording(true);
+                client.stopRecording();
             }
+            AutoRunning = false;
         }
 
         // 음성인식 중지버튼 listener
@@ -227,15 +226,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //이름 업데이트 버튼 클릭했을때
         else if (id == R.id.name_update){
              // 이름 등록 페이지로부터 이름 받아오기
-
              Intent intent = new Intent(MainActivity.this , Name_registration.class);
              startActivityForResult(intent, 1234);
-            // String user_name = intent.getStringExtra("UserName");
-            // System.out.println("!!!!!!!!!!!!!!! Name : " + user_name);
-            // tx1.setText(user_name);
         }
 
     }
+
+    private class ExampleThread extends Thread {
+        private static final String TAG = "ExampleThread";
+            public void run() {
+                Log.i("ExampleThread", "THREAD RUN");
+
+                final String serviceType = SpeechRecognizerClient.SERVICE_TYPE_DICTATION;
+
+                    Looper.prepare();
+                    try {
+                        SpeechRecognizerClient.Builder builder = new SpeechRecognizerClient.Builder().setServiceType(serviceType);
+                        client = builder.build();
+                        client.setSpeechRecognizeListener(MainActivity.this);
+                        client.startRecording(true);
+                        Thread.sleep(3000);
+                        client.stopRecording();
+                        Thread.sleep(200);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    Looper.loop();
+            }
+    }
+
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -251,25 +271,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         else if (resultCode == RESULT_OK) {
             ArrayList<String> results = data.getStringArrayListExtra(VoiceRecognizeActivity.EXTRA_KEY_RESULT_ARRAY);
 
-            final StringBuilder builder = new StringBuilder();
+            final StringBuilder builder2 = new StringBuilder();
 
             for (String result : results) {
-                builder.append(result);
-                builder.append("\n");
+                builder2.append(result);
+                builder2.append("\n");
             }
-
-            thread01_tx2.setText(builder.toString());
-
-
-           /*new AlertDialog.Builder(this).
-                    setMessage(builder.toString()).
-                    setPositiveButton("확인", new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            dialog.dismiss();
-                        }
-                    }).
-                    show();*/
+            thread01_tx2.setText(builder2.toString());
         } else if (requestCode == RESULT_CANCELED) {
             // 음성인식의 오류 등이 아니라 activity의 취소가 발생했을 때.
             if (data == null) {
@@ -288,9 +296,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 dialog.dismiss();
                             }
                         }).show();
-
-
-
             }
         }
     }
@@ -314,14 +319,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onError(int errorCode, String errorMsg) {
         //TODO implement interface
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                setButtonsStatus(true);
-            }
-        });
 
-        client = null;
+        Log.i("onError","on error thread start");
+        if(AutoRunning == true) {
+            try {
+                ExampleThread thread = new ExampleThread();
+                thread.setDaemon(true);
+                thread.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            Log.i("onError", "on error end");
+        }
+            client = null;
+
     }
 
     @Override
@@ -353,16 +364,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 // finishing일때는 처리하지 않는다.
                 if (activity.isFinishing()) return;
 
-                /*
-                AlertDialog.Builder dialog = new AlertDialog.Builder(activity).
-                        setMessage(builder.toString()).
-                        setPositiveButton("확인", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        });
-                dialog.show();*/
 
                 thread01_tx1.setText(builder.toString());
 
@@ -371,6 +372,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     Toast.makeText(getApplicationContext(), "누군가가 당신의 이름을 부르고 있습니다!", Toast.LENGTH_LONG).show();
                 }
 
+
+                //이부분은 테스트용 안녕 들리면 알림줌.
                 if(builder.toString().contains("안녕") == true){
                     Toast.makeText(getApplicationContext(),"누군가가 당신에게 인사하고 있어요!!", Toast.LENGTH_LONG).show();
                 }
@@ -379,6 +382,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
 
         client = null;
+
+        Log.i("SpeechSampleActivity", "onResults End");
+        if(AutoRunning==true) {
+            try {
+                ExampleThread thread = new ExampleThread();
+                thread.setDaemon(true);
+                thread.start();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            Log.i("ExmapleThread", "onresult loop end");
+        }
     }
 
     @Override
@@ -388,6 +403,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onFinished() {
+        if(AutoRunning == true){
+            try {
+                ExampleThread thread = new ExampleThread();
+                thread.setDaemon(true);
+                thread.start();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+        Log.i("SpeechSampleActivity","onFinished");
         //TODO implement interface
     }
 
